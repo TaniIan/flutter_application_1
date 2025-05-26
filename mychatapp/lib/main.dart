@@ -3,6 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+//更新可能なデータ
+class UserState extends ChangeNotifier {
+  User? user;
+
+  void setUser(User newUser) {
+    user = newUser;
+    notifyListeners();
+  }
+}
 
 Future<void> main() async {
   //初期化処理を追加
@@ -21,40 +32,45 @@ Future<void> main() async {
   } else {
     await Firebase.initializeApp();
   }
-  runApp(const ChatApp());
+  runApp(ChatApp());
 }
 
 class ChatApp extends StatelessWidget {
-  const ChatApp({super.key});
+  ChatApp({super.key});
+  final UserState userState = UserState();
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      //アプリ名
-      title: 'ChatApp',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        //テーマカラー
-        primarySwatch: Colors.blue,
+    return ChangeNotifierProvider<UserState>(
+      create: (context) => UserState(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        //アプリ名
+        title: 'ChatApp',
+        theme: ThemeData(
+          //テーマカラー
+          primarySwatch: Colors.blue,
+        ),
+        //ログイン画面を表示
+        home: LoginPage(),
       ),
-      //ログイン画面を表示
-      home: LoginPage(),
+
+      // This is the theme of your application.
+      //
+      // TRY THIS: Try running your application with "flutter run". You'll see
+      // the application has a purple toolbar. Then, without quitting the app,
+      // try changing the seedColor in the colorScheme below to Colors.green
+      // and then invoke "hot reload" (save your changes or press the "hot
+      // reload" button in a Flutter-supported IDE, or press "r" if you used
+      // the command line to start the app).
+      //
+      // Notice that the counter didn't reset back to zero; the application
+      // state is not lost during the reload. To reset the state, use hot
+      // restart instead.
+      //
+      // This works for code too, not just values: Most code changes can be
+      // tested with just a hot reload.
     );
   }
 }
@@ -74,6 +90,9 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    //ユーザー情報を受取る
+    final UserState userState = Provider.of<UserState>(context);
+
     return Scaffold(
       body: Center(
         child: Container(
@@ -118,11 +137,13 @@ class _LoginPageState extends State<LoginPage> {
                         email: email,
                         password: password,
                       );
+                      //ユーザー情報を更新
+                      userState.setUser(result.user!);
                       //ユーザー登録に成功した場合
                       //チャット画面に遷移＋ログイン画面を破棄
                       await Navigator.of(context).pushReplacement(
                         MaterialPageRoute(builder: (context) {
-                          return ChatPage(result.user!);
+                          return ChatPage();
                         }),
                       );
                     } catch (e) {
@@ -148,11 +169,13 @@ class _LoginPageState extends State<LoginPage> {
                         email: email,
                         password: password,
                       );
+                      //ユーザー情報を更新
+                      userState.setUser(result.user!);
                       //ログインに成功した場合
                       //チャット画面に遷移＋ログイン画面を破棄
                       await Navigator.of(context).pushReplacement(
                         MaterialPageRoute(builder: (context) {
-                          return ChatPage(result.user!);
+                          return ChatPage();
                         }),
                       );
                     } catch (e) {
@@ -174,12 +197,14 @@ class _LoginPageState extends State<LoginPage> {
 
 //チャット画面用Widget
 class ChatPage extends StatelessWidget {
-  //引数からユーザー情報を受け取れるようにする
-  ChatPage(this.user);
-  //ユーザー情報
-  final User user;
+  ChatPage();
+
   @override
   Widget build(BuildContext context) {
+    //ユーザー情報を受け取る
+    final UserState userState = Provider.of<UserState>(context);
+    final User user = userState.user!;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('チャット'),
@@ -201,7 +226,7 @@ class ChatPage extends StatelessWidget {
         ],
       ),
       body: Column(
-        children: <Widget>[
+        children: [
           Container(
             padding: EdgeInsets.all(8),
             child: Text('ログイン情報：${user.email}'),
@@ -260,7 +285,7 @@ class ChatPage extends StatelessWidget {
           //投稿画面に遷移
           await Navigator.of(context).push(
             MaterialPageRoute(builder: (context) {
-              return AddPostPage(user);
+              return AddPostPage();
             }),
           );
         },
@@ -271,10 +296,7 @@ class ChatPage extends StatelessWidget {
 
 //投稿画面用Widget
 class AddPostPage extends StatefulWidget {
-  //引数からユーザー情報を受取る
-  AddPostPage(this.user);
-  //ユーザー情報
-  final User user;
+  AddPostPage();
 
   @override
   _AddPostPageState createState() => _AddPostPageState();
@@ -286,6 +308,10 @@ class _AddPostPageState extends State<AddPostPage> {
 
   @override
   Widget build(BuildContext context) {
+    //ユーザー情報を受け取る
+    final UserState userState = Provider.of<UserState>(context);
+    final User user = userState.user!;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('チャット投稿'),
@@ -317,7 +343,7 @@ class _AddPostPageState extends State<AddPostPage> {
                   onPressed: () async {
                     final date =
                         DateTime.now().toLocal().toIso8601String(); //現在の日時
-                    final email = widget.user.email; //AddPostPageのデータを参照
+                    final email = user.email; //AddPostPageのデータを参照
                     //投稿メッセージ用ドキュメント作成
                     await FirebaseFirestore.instance
                         .collection('posts') //コレクションID指定
