@@ -1,257 +1,646 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  //最初に表示するWidget
-  runApp(MyTodoApp());
+const Color kAccentColor = Color(0xFFFE7C64);
+const Color kBackgroundColor = Color(0xFF19283D);
+const Color kTextColorPrimary = Color(0xFFECEFF1);
+const Color kTextColorSecondary = Color(0xFFB0BEC5);
+const Color kButtonColorPrimary = Color(0xFFECEFF1);
+const Color kButtonTextColorPrimary = Color(0xFF455A64);
+const Color kIconColor = Color(0xFF455A64);
+
+//更新可能なデータ
+class UserState extends ChangeNotifier {
+  User? user;
+
+  void setUser(User newUser) {
+    user = newUser;
+    notifyListeners();
+  }
+
+  void clearUser(){
+    user = null;
+    notifyListeners();
+  }
 }
 
-class MyTodoApp extends StatelessWidget {
-  const MyTodoApp({super.key});
+Future<void> main() async {
+  //初期化処理を追加
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+          apiKey: "AIzaSyDgysxbzYb20cVlS5Z-yPmDTW5DkULOtQc",
+          authDomain: "mytodoapp-5b1c5.firebaseapp.com",
+          projectId: "mytodoapp-5b1c5",
+          storageBucket: "mytodoapp-5b1c5.firebasestorage.app",
+          messagingSenderId: "713225149531",
+          appId: "1:713225149531:web:efd1d311a8baa4c0b1b37e",
+          measurementId: "G-P4MLCGCX3T"),
+    );
+  } else {
+    await Firebase.initializeApp();
+  }
+  runApp(ToDoApp());
+}
+
+class ToDoApp extends StatelessWidget {
+  ToDoApp({super.key});
+  final UserState userState = UserState();
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      //右上に表示される"debug"ラベルを消す
-      debugShowCheckedModeBanner: false,
-      //アプリ名
-      title: 'My Todo App',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        // colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        // useMaterial3: true,
-        //テーマカラー
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      //リスト一覧画面を表示
-      home: TodoListPage(),
-    );
-  }
-}
-
-//リスト一覧画面用Widget
-class TodoListPage extends StatefulWidget {
-  @override
-  _TodoListPageState createState() => _TodoListPageState();
-}
-
-class _TodoListPageState extends State<TodoListPage> {
-  //Todoリストのデータ
-  List<String> todoList = [];
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    return Scaffold(
-      //AppBarを表示し、タイトルも設定
-      appBar: AppBar(
-        title: Text('リスト一覧'),
-      ),
-      //データを元にListViewを作成
-      body: ListView.builder(
-        itemCount: todoList.length,
-        itemBuilder: (context, index) {
-          return Card(
-            child: ListTile(
-              title: Text(todoList[index]),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          //"pop"で新規画面に遷移
-          //リスト追加画面から渡される値を受け取る
-          final newListText = await Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) {
-              //遷移先の画面としてリスト追加画面を指定
-              return TodoAddPage();
-            }),
-          );
-          if (newListText != null) {
-            //キャンセルした場合は、newListText が null となるので注意
-            setState(() {
-              //リスト追加
-              todoList.add(newListText);
-            });
-          }
-        },
-        child: Icon(Icons.add),
+    return ChangeNotifierProvider<UserState>(
+      create: (context) => UserState(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        //アプリ名
+        title: 'ToDoApp',
+        theme: ThemeData.dark().copyWith(
+          //accentColor: kAccentColor,
+          colorScheme: ThemeData.dark().colorScheme.copyWith(
+                secondary: kAccentColor,
+              ),
+        ),
+        //ログイン画面を表示
+        home: LoginPage(),
       ),
     );
   }
 }
 
-//リスト追加画面用Widget
-class TodoAddPage extends StatefulWidget {
-  @override
-  _TodoAddPageState createState() => _TodoAddPageState();
-}
-
-class _TodoAddPageState extends State<TodoAddPage> {
-  //入力されたテキストをデータとして持つ
-  String _text = '';
-
-  //データを元に表示するWidget
+class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('リスト追加'),
-      ),
-      body: Container(
-        //余白を付ける
-        padding: EdgeInsets.all(64),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            //入力されたテキストを表示
-            Text(_text, style: TextStyle(color: Colors.blue)),
-            const SizedBox(height: 8),
-            //テキスト入力
-            TextField(
-              //入力されたテキストの値を受け取る（valueが入力されたテキスト）
-              onChanged: (String value) {
-                //データが変更したことを知らせる（画面を更新する）
-                setState(() {
-                  //データを変更
-                  _text = value;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            Container(
-              //横幅いっぱいに広げる
-              width: double.infinity,
-              //リスト追加ボタン
-              child: ElevatedButton(
-                onPressed: () {
-                  //"pop"で前の画面に戻る
-                  //"pop"の引数から前の画面にデータを渡す
-                  Navigator.of(context).pop(_text);
-                },
-                child: Text('リスト追加', style: TextStyle(color: Colors.white)),
+      backgroundColor: kBackgroundColor,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _Header(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: _SignInForm(),
               ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              //横幅いっぱいに広げる
-              width: double.infinity,
-              //キャンセルボタン
-              child: TextButton(
-                //ボタンをクリックした時の処理
-                onPressed: () {
-                  //"pop"で前の画面に戻る
-                  Navigator.of(context).pop();
-                },
-                child: Text('キャンセル'),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 64),
+                child: _Footer(),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
-// class MyHomePage extends StatefulWidget {
-//   const MyHomePage({super.key, required this.title});
 
-//   // This widget is the home page of your application. It is stateful, meaning
-//   // that it has a State object (defined below) that contains fields that affect
-//   // how it looks.
+class _HeaderCurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..lineTo(0, size.height * 0.5)
+      ..quadraticBezierTo(
+        size.width * 0.55,
+        size.height,
+        size.width,
+        size.height * 0.6,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
+  }
 
-//   // This class is the configuration for the state. It holds the values (in this
-//   // case the title) provided by the parent (in this case the App widget) and
-//   // used by the build method of the State. Fields in a Widget subclass are
-//   // always marked "final".
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) {
+    return true;
+  }
+}
 
-//   final String title;
+class _HeaderBackground extends StatelessWidget {
+  final double height;
 
-//   @override
-//   State<MyHomePage> createState() => _MyHomePageState();
-// }
+  const _HeaderBackground({
+    Key? key,
+    required this.height,
+  }) : super(key: key);
 
-// class _MyHomePageState extends State<MyHomePage> {
-//   int _counter = 0;
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _HeaderCurveClipper(),
+      child: Container(
+        width: double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: FractionalOffset.topLeft,
+            end: FractionalOffset.bottomRight,
+            colors: [
+              Color(0xFFFD9766),
+              Color(0xFFFF7362),
+            ],
+            stops: [0, 1],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-//   void _incrementCounter() {
-//     setState(() {
-//       // This call to setState tells the Flutter framework that something has
-//       // changed in this State, which causes it to rerun the build method below
-//       // so that the display can reflect the updated values. If we changed
-//       // _counter without calling setState(), then the build method would not be
-//       // called again, and so nothing would appear to happen.
-//       _counter++;
-//     });
-//   }
+class _HeaderCirclePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6;
 
-//   @override
-//   Widget build(BuildContext context) {
-//     // This method is rerun every time setState is called, for instance as done
-//     // by the _incrementCounter method above.
-//     //
-//     // The Flutter framework has been optimized to make rerunning build methods
-//     // fast, so that you can just rebuild anything that needs updating rather
-//     // than having to individually change instances of widgets.
-//     return Scaffold(
-//       appBar: AppBar(
-//         // TRY THIS: Try changing the color here to a specific color (to
-//         // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-//         // change color while the other colors stay the same.
-//         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-//         // Here we take the value from the MyHomePage object that was created by
-//         // the App.build method, and use it to set our appbar title.
-//         title: Text(widget.title),
-//       ),
-//       body: Center(
-//         // Center is a layout widget. It takes a single child and positions it
-//         // in the middle of the parent.
-//         child: Column(
-//           // Column is also a layout widget. It takes a list of children and
-//           // arranges them vertically. By default, it sizes itself to fit its
-//           // children horizontally, and tries to be as tall as its parent.
-//           //
-//           // Column has various properties to control how it sizes itself and
-//           // how it positions its children. Here we use mainAxisAlignment to
-//           // center the children vertically; the main axis here is the vertical
-//           // axis because Columns are vertical (the cross axis would be
-//           // horizontal).
-//           //
-//           // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-//           // action in the IDE, or press "p" in the console), to see the
-//           // wireframe for each widget.
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: <Widget>[
-//             const Text(
-//               'You have pushed the button this many times:',
-//             ),
-//             Text(
-//               '$_counter',
-//               style: Theme.of(context).textTheme.headlineMedium,
-//             ),
-//           ],
-//         ),
-//       ),
-//       floatingActionButton: FloatingActionButton(
-//         onPressed: _incrementCounter,
-//         tooltip: 'Increment',
-//         child: const Icon(Icons.add),
-//       ), // This trailing comma makes auto-formatting nicer for build methods.
-//     );
-//   }
-// }
+    canvas.drawCircle(
+      Offset(size.width * 0.25, size.height * 0.4),
+      12,
+      paint,
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.75, size.height * 0.2),
+      12,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return false;
+  }
+}
+
+class _HeaderCircles extends StatelessWidget {
+  final double height;
+
+  const _HeaderCircles({
+    Key? key,
+    required this.height,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _HeaderCirclePainter(),
+      child: Container(
+        width: double.infinity,
+        height: height,
+      ),
+    );
+  }
+}
+
+class _HeaderTitle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Welcome',
+          style: Theme.of(context).textTheme.headlineMedium!.copyWith(
+                color: kTextColorPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Sign in to continue',
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall!
+              .copyWith(color: kTextColorPrimary),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeadBackButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      style: TextButton.styleFrom(
+        foregroundColor: kButtonTextColorPrimary,
+        backgroundColor: Colors.transparent,
+        shape: CircleBorder(
+          side: BorderSide(color: kButtonColorPrimary),
+        ),
+      ),
+      onPressed: () {},
+      child: Icon(Icons.chevron_left, color: kIconColor),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final double height = 320;
+    return Container(
+      height: height,
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: _HeaderBackground(height: height),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: _HeaderCircles(height: height),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: EdgeInsets.only(top: 128),
+              child: _HeaderTitle(),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            left: 0,
+            child: _HeadBackButton(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomTextField extends StatelessWidget {
+  final String labelText;
+  final String hintText;
+  final bool obscureText;
+  final ValueChanged<String> onChanged;
+
+  const _CustomTextField({
+    Key? key,
+    required this.labelText,
+    required this.hintText,
+    required this.obscureText,
+    required this.onChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        hintStyle: TextStyle(color: kTextColorSecondary),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: kAccentColor,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: kTextColorSecondary,
+          ),
+        ),
+      ),
+      obscureText: obscureText,
+      onChanged: onChanged,
+      onTap: () {},
+    );
+  }
+}
+
+class _SignInForm extends StatefulWidget {
+  @override
+  _SignInFormState createState() => _SignInFormState();
+}
+
+class _SignInFormState extends State<_SignInForm>{
+  String infoText = '';
+  String email = '';
+  String password = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _CustomTextField(
+          labelText: 'Email',
+          hintText: 'your email address goes here',
+          obscureText: false,
+          onChanged:(String value){
+            setState((){
+              email = value;
+            });
+          },
+        ),
+        SizedBox(height: 48),
+        _CustomTextField(
+          labelText: 'Password',
+          hintText: 'your password goes here',
+          obscureText: true,
+          onChanged: (String value) {
+            setState(() {
+              password = value;
+            });
+          },
+        ),
+        Container(
+          padding: EdgeInsets.all(8),
+          child: Text(infoText),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Forgot Password?',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium!
+              .copyWith(color: kTextColorSecondary),
+        ),
+        SizedBox(height: 48),
+        Container(
+          width: double.infinity,
+          //ログイン登録ボタン
+          child: TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: kButtonTextColorPrimary,
+              backgroundColor: kButtonColorPrimary,
+              padding: EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () async {
+              try{
+                //メール/パスワードでログイン
+                final FirebaseAuth auth = FirebaseAuth.instance;
+                final result = await auth.signInWithEmailAndPassword(
+                  email: email, 
+                  password: password,
+                  );
+                  //ログインに成功した場合
+                  //チャット画面に遷移＋ログイン画面を破棄
+                await Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context){
+                    return MainPage();
+                  }),
+                );
+              } catch (e) {
+                //ログインに失敗した場合
+                setState(() {
+                  infoText = "ログインに失敗しました：${e.toString()}";
+                });
+              }
+            },
+            child: Text(
+              'Sign in',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge!
+                  .copyWith(color: kButtonTextColorPrimary, fontSize: 18),
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Text(
+          'OR',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium!
+              .copyWith(color: kTextColorSecondary),
+        ),
+        SizedBox(height: 16),
+        Text(
+          'Connect with',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium!
+              .copyWith(color: kTextColorPrimary),
+        ),
+        SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: Icon(Icons.account_circle),
+              onPressed: () {},
+            ),
+            Container(
+              color: kTextColorSecondary,
+              width: 1,
+              height: 16,
+            ),
+            IconButton(
+              icon: Icon(Icons.account_circle),
+              onPressed: () {},
+            ),
+          ],
+        )
+      ],
+    );
+  }
+}
+
+class _Footer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Dont\'t have Account?',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium!
+              .copyWith(color: kTextColorSecondary),
+        ),
+        SizedBox(width: 4),
+        Text(
+          'Sign up',
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium!
+              .copyWith(color: kTextColorPrimary),
+        ),
+      ],
+    );
+  }
+}
+
+//メイン画面用Widget
+class MainPage extends StatelessWidget {
+  MainPage();
+
+  @override
+  Widget build(BuildContext context) {
+    //ユーザー情報を受け取る
+    final UserState userState = Provider.of<UserState>(context);
+    final User user = userState.user!;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('ToDoリスト'),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: () async {
+              //ログアウト処理
+              //内部で保持しているログイン情報等が初期化される
+              await FirebaseAuth.instance.signOut();
+              //ログイン画面に遷移＋メイン画面を破棄
+              await Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) {
+                  return LoginPage();
+                }),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            child: Text('ログイン情報：${user.email}'),
+          ),
+          Expanded(
+            //StreamBuilder
+            //非同期処理の結果を元にWidgetを作れる
+            child: StreamBuilder<QuerySnapshot>(
+              //投稿メッセージ一覧を取得（非同期処理）
+              //投稿日時でソート
+              stream: FirebaseFirestore.instance
+                  .collection('posts')
+                  .orderBy('date')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                //データが取得できた場合
+                if (snapshot.hasData) {
+                  final List<DocumentSnapshot> documents = snapshot.data!.docs;
+                  //取得した投稿メッセージ一覧を元にリスト表示
+                  return ListView(
+                    children: documents.map((document) {
+                      return Card(
+                        child: ListTile(
+                          title: Text(document['text']),
+                          subtitle: Text(document['email']),
+                          //自分の投稿メッセージの場合は削除ボタンを表示
+                          trailing: document['email'] == user.email
+                              ? IconButton(
+                                  icon: Icon(Icons.delete),
+                                  onPressed: () async {
+                                    //投稿メッセージのドキュメントを削除
+                                    await FirebaseFirestore.instance
+                                        .collection('posts')
+                                        .doc(document.id)
+                                        .delete();
+                                  },
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  );
+                }
+                //データが読込中の場合
+                return Center(
+                  child: Text('読込中...'),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        onPressed: () async {
+          //投稿画面に遷移
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) {
+              return AddPostPage();
+            }),
+          );
+        },
+      ),
+    );
+  }
+}
+
+//投稿画面用Widget
+class AddPostPage extends StatefulWidget {
+  AddPostPage();
+
+  @override
+  _AddPostPageState createState() => _AddPostPageState();
+}
+
+class _AddPostPageState extends State<AddPostPage> {
+  //入力した投稿メッセージ
+  String messageText = '';
+
+  @override
+  Widget build(BuildContext context) {
+    //ユーザー情報を受け取る
+    final UserState userState = Provider.of<UserState>(context);
+    final User user = userState.user!;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('ToDo投稿'),
+      ),
+      body: Center(
+        child: Container(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              //投稿メッセージ入力
+              TextFormField(
+                decoration: InputDecoration(labelText: '投稿メッセージ'),
+                //複数行のテキスト入力
+                keyboardType: TextInputType.multiline,
+                //最大3行
+                maxLines: 3,
+                onChanged: (String value) {
+                  setState(() {
+                    messageText = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                child: ElevatedButton(
+                  child: Text('投稿'),
+                  onPressed: () async {
+                    final date =
+                        DateTime.now().toLocal().toIso8601String(); //現在の日時
+                    final email = user.email; //AddPostPageのデータを参照
+                    //投稿メッセージ用ドキュメント作成
+                    await FirebaseFirestore.instance
+                        .collection('posts') //コレクションID指定
+                        .doc() //ドキュメントID自動生成
+                        .set({
+                      'text': messageText,
+                      'email': email,
+                      'date': date
+                    });
+                    //一つ前の画面に戻る
+                    Navigator.of(context).pop();
+                  },
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
