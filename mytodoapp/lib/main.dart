@@ -1,17 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-const Color kAccentColor = Color(0xFFFE7C64);
-const Color kBackgroundColor = Color(0xFF19283D);
-const Color kTextColorPrimary = Color(0xFFECEFF1);
-const Color kTextColorSecondary = Color(0xFFB0BEC5);
-const Color kButtonColorPrimary = Color(0xFFECEFF1);
-const Color kButtonTextColorPrimary = Color(0xFF455A64);
-const Color kIconColor = Color(0xFF455A64);
 
 //更新可能なデータ
 class UserState extends ChangeNotifier {
@@ -19,11 +11,6 @@ class UserState extends ChangeNotifier {
 
   void setUser(User newUser) {
     user = newUser;
-    notifyListeners();
-  }
-
-  void clearUser(){
-    user = null;
     notifyListeners();
   }
 }
@@ -45,11 +32,11 @@ Future<void> main() async {
   } else {
     await Firebase.initializeApp();
   }
-  runApp(ToDoApp());
+  runApp(TodoApp());
 }
 
-class ToDoApp extends StatelessWidget {
-  ToDoApp({super.key});
+class TodoApp extends StatelessWidget {
+  TodoApp({super.key});
   final UserState userState = UserState();
 
   // This widget is the root of your application.
@@ -60,423 +47,157 @@ class ToDoApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         //アプリ名
-        title: 'ToDoApp',
-        theme: ThemeData.dark().copyWith(
-          //accentColor: kAccentColor,
-          colorScheme: ThemeData.dark().colorScheme.copyWith(
-                secondary: kAccentColor,
-              ),
+        title: 'TodoApp',
+        theme: ThemeData(
+          //テーマカラー
+          primarySwatch: Colors.blue,
         ),
         //ログイン画面を表示
         home: LoginPage(),
       ),
+
+      // This is the theme of your application.
+      //
+      // TRY THIS: Try running your application with "flutter run". You'll see
+      // the application has a purple toolbar. Then, without quitting the app,
+      // try changing the seedColor in the colorScheme below to Colors.green
+      // and then invoke "hot reload" (save your changes or press the "hot
+      // reload" button in a Flutter-supported IDE, or press "r" if you used
+      // the command line to start the app).
+      //
+      // Notice that the counter didn't reset back to zero; the application
+      // state is not lost during the reload. To reset the state, use hot
+      // restart instead.
+      //
+      // This works for code too, not just values: Most code changes can be
+      // tested with just a hot reload.
     );
   }
 }
 
-class LoginPage extends StatelessWidget {
+//ログイン画面用Widget
+class LoginPage extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _Header(),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: _SignInForm(),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 64),
-                child: _Footer(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  _LoginPageState createState() => _LoginPageState();
 }
 
-class _HeaderCurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    return Path()
-      ..lineTo(0, size.height * 0.5)
-      ..quadraticBezierTo(
-        size.width * 0.55,
-        size.height,
-        size.width,
-        size.height * 0.6,
-      )
-      ..lineTo(size.width, 0)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) {
-    return true;
-  }
-}
-
-class _HeaderBackground extends StatelessWidget {
-  final double height;
-
-  const _HeaderBackground({
-    Key? key,
-    required this.height,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: _HeaderCurveClipper(),
-      child: Container(
-        width: double.infinity,
-        height: height,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: FractionalOffset.topLeft,
-            end: FractionalOffset.bottomRight,
-            colors: [
-              Color(0xFFFD9766),
-              Color(0xFFFF7362),
-            ],
-            stops: [0, 1],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderCirclePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6;
-
-    canvas.drawCircle(
-      Offset(size.width * 0.25, size.height * 0.4),
-      12,
-      paint,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.75, size.height * 0.2),
-      12,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return false;
-  }
-}
-
-class _HeaderCircles extends StatelessWidget {
-  final double height;
-
-  const _HeaderCircles({
-    Key? key,
-    required this.height,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _HeaderCirclePainter(),
-      child: Container(
-        width: double.infinity,
-        height: height,
-      ),
-    );
-  }
-}
-
-class _HeaderTitle extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Welcome',
-          style: Theme.of(context).textTheme.headlineMedium!.copyWith(
-                color: kTextColorPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          'Sign in to continue',
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall!
-              .copyWith(color: kTextColorPrimary),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeadBackButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: kButtonTextColorPrimary,
-        backgroundColor: Colors.transparent,
-        shape: CircleBorder(
-          side: BorderSide(color: kButtonColorPrimary),
-        ),
-      ),
-      onPressed: () {},
-      child: Icon(Icons.chevron_left, color: kIconColor),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final double height = 320;
-    return Container(
-      height: height,
-      child: Stack(
-        children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: _HeaderBackground(height: height),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: _HeaderCircles(height: height),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: EdgeInsets.only(top: 128),
-              child: _HeaderTitle(),
-            ),
-          ),
-          Positioned(
-            top: 16,
-            left: 0,
-            child: _HeadBackButton(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CustomTextField extends StatelessWidget {
-  final String labelText;
-  final String hintText;
-  final bool obscureText;
-  final ValueChanged<String> onChanged;
-
-  const _CustomTextField({
-    Key? key,
-    required this.labelText,
-    required this.hintText,
-    required this.obscureText,
-    required this.onChanged,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        hintStyle: TextStyle(color: kTextColorSecondary),
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: kAccentColor,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: kTextColorSecondary,
-          ),
-        ),
-      ),
-      obscureText: obscureText,
-      onChanged: onChanged,
-      onTap: () {},
-    );
-  }
-}
-
-class _SignInForm extends StatefulWidget {
-  @override
-  _SignInFormState createState() => _SignInFormState();
-}
-
-class _SignInFormState extends State<_SignInForm>{
+class _LoginPageState extends State<LoginPage> {
+  //メッセージ表示用
   String infoText = '';
+  //入力したメールアドレス・パスワード
   String email = '';
   String password = '';
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _CustomTextField(
-          labelText: 'Email',
-          hintText: 'your email address goes here',
-          obscureText: false,
-          onChanged:(String value){
-            setState((){
-              email = value;
-            });
-          },
-        ),
-        SizedBox(height: 48),
-        _CustomTextField(
-          labelText: 'Password',
-          hintText: 'your password goes here',
-          obscureText: true,
-          onChanged: (String value) {
-            setState(() {
-              password = value;
-            });
-          },
-        ),
-        Container(
-          padding: EdgeInsets.all(8),
-          child: Text(infoText),
-        ),
-        SizedBox(height: 4),
-        Text(
-          'Forgot Password?',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium!
-              .copyWith(color: kTextColorSecondary),
-        ),
-        SizedBox(height: 48),
-        Container(
-          width: double.infinity,
-          //ログイン登録ボタン
-          child: TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: kButtonTextColorPrimary,
-              backgroundColor: kButtonColorPrimary,
-              padding: EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+    //ユーザー情報を受取る
+    final UserState userState = Provider.of<UserState>(context);
+
+    return Scaffold(
+      body: Center(
+        child: Container(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              //メールアドレス入力
+              TextFormField(
+                decoration: InputDecoration(labelText: 'メールアドレス'),
+                onChanged: (String value) {
+                  setState(() {
+                    email = value;
+                  });
+                },
               ),
-            ),
-            onPressed: () async {
-              try{
-                //メール/パスワードでログイン
-                final FirebaseAuth auth = FirebaseAuth.instance;
-                final result = await auth.signInWithEmailAndPassword(
-                  email: email, 
-                  password: password,
-                  );
-                  //ログインに成功した場合
-                  //チャット画面に遷移＋ログイン画面を破棄
-                await Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context){
-                    return MainPage();
-                  }),
-                );
-              } catch (e) {
-                //ログインに失敗した場合
-                setState(() {
-                  infoText = "ログインに失敗しました：${e.toString()}";
-                });
-              }
-            },
-            child: Text(
-              'Sign in',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge!
-                  .copyWith(color: kButtonTextColorPrimary, fontSize: 18),
-            ),
+              //パスワード入力
+              TextFormField(
+                decoration: InputDecoration(labelText: 'パスワード'),
+                obscureText: true,
+                onChanged: (String value) {
+                  setState(() {
+                    password = value;
+                  });
+                },
+              ),
+              Container(
+                padding: EdgeInsets.all(8),
+                //メッセージ表示
+                child: Text(infoText),
+              ),
+              Container(
+                width: double.infinity,
+                //ユーザー登録ボタン
+                child: ElevatedButton(
+                  child: Text('ユーザー登録'),
+                  onPressed: () async {
+                    try {
+                      //メール/パスワードでユーザー登録
+                      final FirebaseAuth auth = FirebaseAuth.instance;
+                      final result = await auth.createUserWithEmailAndPassword(
+                        email: email,
+                        password: password,
+                      );
+                      //ユーザー情報を更新
+                      userState.setUser(result.user!);
+                      //ユーザー登録に成功した場合
+                      //一覧画面に遷移＋ログイン画面を破棄
+                      await Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (context) {
+                          return TodoPage();
+                        }),
+                      );
+                    } catch (e) {
+                      //ユーザー登録に失敗した場合
+                      setState(() {
+                        infoText = "登録に失敗しました：${e.toString()}";
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                //ログイン登録ボタン
+                child: OutlinedButton(
+                  child: Text('ログイン'),
+                  onPressed: () async {
+                    try {
+                      //メール/パスワードでログイン
+                      final FirebaseAuth auth = FirebaseAuth.instance;
+                      final result = await auth.signInWithEmailAndPassword(
+                        email: email,
+                        password: password,
+                      );
+                      //ユーザー情報を更新
+                      userState.setUser(result.user!);
+                      //ログインに成功した場合
+                      //一覧画面に遷移＋ログイン画面を破棄
+                      await Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (context) {
+                          return TodoPage();
+                        }),
+                      );
+                    } catch (e) {
+                      //ログインに失敗した場合
+                      setState(() {
+                        infoText = "ログインに失敗しました：${e.toString()}";
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ),
-        SizedBox(height: 16),
-        Text(
-          'OR',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium!
-              .copyWith(color: kTextColorSecondary),
-        ),
-        SizedBox(height: 16),
-        Text(
-          'Connect with',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium!
-              .copyWith(color: kTextColorPrimary),
-        ),
-        SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: Icon(Icons.account_circle),
-              onPressed: () {},
-            ),
-            Container(
-              color: kTextColorSecondary,
-              width: 1,
-              height: 16,
-            ),
-            IconButton(
-              icon: Icon(Icons.account_circle),
-              onPressed: () {},
-            ),
-          ],
-        )
-      ],
+      ),
     );
   }
 }
 
-class _Footer extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'Dont\'t have Account?',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium!
-              .copyWith(color: kTextColorSecondary),
-        ),
-        SizedBox(width: 4),
-        Text(
-          'Sign up',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium!
-              .copyWith(color: kTextColorPrimary),
-        ),
-      ],
-    );
-  }
-}
-
-//メイン画面用Widget
-class MainPage extends StatelessWidget {
-  MainPage();
+//一覧画面用Widget
+class TodoPage extends StatelessWidget {
+  TodoPage();
 
   @override
   Widget build(BuildContext context) {
@@ -486,7 +207,7 @@ class MainPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('ToDoリスト'),
+        title: Text('一覧'),
         actions: <Widget>[
           IconButton(
             icon: Icon(Icons.logout),
@@ -494,7 +215,7 @@ class MainPage extends StatelessWidget {
               //ログアウト処理
               //内部で保持しているログイン情報等が初期化される
               await FirebaseAuth.instance.signOut();
-              //ログイン画面に遷移＋メイン画面を破棄
+              //ログイン画面に遷移＋一覧画面を破棄
               await Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (context) {
                   return LoginPage();
@@ -593,7 +314,7 @@ class _AddPostPageState extends State<AddPostPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('ToDo投稿'),
+        title: Text('やること追加'),
       ),
       body: Center(
         child: Container(
@@ -603,7 +324,7 @@ class _AddPostPageState extends State<AddPostPage> {
             children: <Widget>[
               //投稿メッセージ入力
               TextFormField(
-                decoration: InputDecoration(labelText: '投稿メッセージ'),
+                decoration: InputDecoration(labelText: 'やること内容'),
                 //複数行のテキスト入力
                 keyboardType: TextInputType.multiline,
                 //最大3行
@@ -618,7 +339,7 @@ class _AddPostPageState extends State<AddPostPage> {
               Container(
                 width: double.infinity,
                 child: ElevatedButton(
-                  child: Text('投稿'),
+                  child: Text('追加'),
                   onPressed: () async {
                     final date =
                         DateTime.now().toLocal().toIso8601String(); //現在の日時
