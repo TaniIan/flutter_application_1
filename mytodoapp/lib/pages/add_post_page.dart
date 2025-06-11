@@ -37,6 +37,7 @@ class _AddPostPageState extends State<AddPostPage> {
                   'text': messageText,
                   'email': user.email,
                   'date': date,
+                  'isDone': false,
                 });
                 Navigator.of(context).pop();
               },

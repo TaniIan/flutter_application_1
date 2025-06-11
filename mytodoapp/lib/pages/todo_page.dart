@@ -6,12 +6,20 @@ import '../models/user_state.dart';
 import 'add_post_page.dart';
 import 'login_page.dart';
 
-class TodoPage extends StatelessWidget {
+enum FilterType { all, done, undone }
+
+
+class TodoPage extends StatefulWidget {
+  @override
+  _TodoPageState createState() => _TodoPageState();
+}
+
+class _TodoPageState extends State<TodoPage> {
+  FilterType _filterType = FilterType.all;
+
   @override
   Widget build(BuildContext context) {
-    final userState = Provider.of<UserState>(context);
-    final user = userState.user!;
-
+    final user = Provider.of<UserState>(context).user!;
     return Scaffold(
       appBar: AppBar(
         title: Text('一覧'),
@@ -21,63 +29,121 @@ class TodoPage extends StatelessWidget {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               await Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => LoginPage()),
+                MaterialPageRoute(builder: (context) => LoginPage()),
               );
             },
           ),
         ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('ログイン情報：${user.email}'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildFilterButton('すべて', FilterType.all),
+              _buildFilterButton('未完了', FilterType.undone),
+              _buildFilterButton('完了', FilterType.done),
+            ],
           ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('posts')
-                  .orderBy('date')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  final documents = snapshot.data!.docs;
-                  return ListView(
-                    children: documents.map((doc) {
-                      return Card(
-                        child: ListTile(
-                          title: Text(doc['text']),
-                          subtitle: Text(doc['email']),
-                          trailing: doc['email'] == user.email
-                              ? IconButton(
-                                  icon: Icon(Icons.delete),
-                                  onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('posts')
-                                        .doc(doc.id)
-                                        .delete();
-                                  },
-                                )
-                              : null,
-                        ),
-                      );
-                    }).toList(),
-                  );
-                }
-                return Center(child: Text('読込中...'));
-              },
-            ),
-          ),
-        ],
+        ),
       ),
+      body: _buildTodoList(user),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
         onPressed: () async {
           await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => AddPostPage()),
+            MaterialPageRoute(builder: (context) => AddPostPage()),
           );
         },
       ),
     );
   }
+
+  Widget _buildFilterButton(String label, FilterType type) {
+    final isSelected = _filterType == type;
+    return TextButton(
+      onPressed: () {
+        setState(() {
+          _filterType = type;
+        });
+      },
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.blue : Colors.black54,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTodoList(User user) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('posts')
+          .where('email', isEqualTo: user.email)
+          // .orderBy('date')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return Center(child: Text('読込中...'));
+
+        final docs = snapshot.data!.docs;
+
+        // フィルター適用
+        final filteredDocs = docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final isDone = data['isDone'] ?? false;
+          switch (_filterType) {
+            case FilterType.done:
+              return isDone;
+            case FilterType.undone:
+              return !isDone;
+            case FilterType.all:
+            default:
+              return true;
+          }
+        }).toList();
+
+        return ListView(
+          children: filteredDocs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final isDone = data['isDone'] ?? false;
+
+            return Card(
+              child: ListTile(
+                leading: Checkbox(
+                  value: isDone,
+                  onChanged: (value) {
+                    FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(doc.id)
+                        .update({'isDone': value});
+                  },
+                ),
+                title: Text(
+                  data['text'],
+                  style: TextStyle(
+                    decoration: isDone ? TextDecoration.lineThrough : null,
+                    color: isDone ? Colors.grey : null,
+                  ),
+                ),
+                subtitle: Text(data['email']),
+                trailing: data['email'] == user.email
+                    ? IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () async {
+                          await FirebaseFirestore.instance
+                              .collection('posts')
+                              .doc(doc.id)
+                              .delete();
+                        },
+                      )
+                    : null,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
 }
+
