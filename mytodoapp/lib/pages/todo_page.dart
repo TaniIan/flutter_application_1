@@ -8,7 +8,6 @@ import 'login_page.dart';
 
 enum FilterType { all, done, undone }
 
-
 class TodoPage extends StatefulWidget {
   @override
   _TodoPageState createState() => _TodoPageState();
@@ -81,9 +80,12 @@ class _TodoPageState extends State<TodoPage> {
       stream: FirebaseFirestore.instance
           .collection('posts')
           .where('email', isEqualTo: user.email)
-          // .orderBy('date')
+          .orderBy('date', descending: false)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('エラー: ${snapshot.error}'));
+        }
         if (!snapshot.hasData) return Center(child: Text('読込中...'));
 
         final docs = snapshot.data!.docs;
@@ -108,6 +110,15 @@ class _TodoPageState extends State<TodoPage> {
             final data = doc.data() as Map<String, dynamic>;
             final isDone = data['isDone'] ?? false;
 
+            // dateフィールドをDateTime型に変換
+            DateTime? dateTime;
+            final dateValue = data['date'];
+            if (dateValue is Timestamp) {
+              dateTime = dateValue.toDate();
+            } else if (dateValue is String) {
+              dateTime = DateTime.tryParse(dateValue);
+            }
+
             return Card(
               child: ListTile(
                 leading: Checkbox(
@@ -126,7 +137,12 @@ class _TodoPageState extends State<TodoPage> {
                     color: isDone ? Colors.grey : null,
                   ),
                 ),
-                subtitle: Text(data['email']),
+                subtitle: Text(
+                  data['email'] +
+                      (dateTime != null
+                          ? ' (${dateTime.toLocal().toString().split(".")[0]})'
+                          : ''),
+                ),
                 trailing: data['email'] == user.email
                     ? IconButton(
                         icon: Icon(Icons.delete),
@@ -146,4 +162,3 @@ class _TodoPageState extends State<TodoPage> {
     );
   }
 }
-

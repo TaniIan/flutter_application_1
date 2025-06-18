@@ -14,7 +14,9 @@ class TodoApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'TodoApp',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          // primarySwatch: Colors.green,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color.fromARGB(255, 38, 144, 177))
         ),
         home: LoginPage(),
       ),
