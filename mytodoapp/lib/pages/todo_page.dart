@@ -1,164 +1,108 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_state.dart';
+import '../widgets/post_item.dart';
 import 'add_post_page.dart';
 import 'login_page.dart';
 
-enum FilterType { all, done, undone }
+enum Filter { all, completed, incomplete }
 
 class TodoPage extends StatefulWidget {
+  const TodoPage({super.key});
+
   @override
-  _TodoPageState createState() => _TodoPageState();
+  State<TodoPage> createState() => _TodoPageState();
 }
 
 class _TodoPageState extends State<TodoPage> {
-  FilterType _filterType = FilterType.all;
+  Filter _filter = Filter.all;
 
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserState>(context).user!;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('一覧'),
+        title: const Text('やること一覧'),
         actions: [
+          PopupMenuButton<Filter>(
+            onSelected: (Filter selected) {
+              setState(() => _filter = selected);
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: Filter.all, child: Text('すべて')),
+              const PopupMenuItem(value: Filter.completed, child: Text('完了のみ')),
+              const PopupMenuItem(
+                  value: Filter.incomplete, child: Text('未完了のみ')),
+            ],
+            icon: const Icon(Icons.filter_list),
+          ),
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              await Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => LoginPage()),
-              );
+              Provider.of<UserState>(context, listen: false).clearUser();
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                );
+              }
             },
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(48),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildFilterButton('すべて', FilterType.all),
-              _buildFilterButton('未完了', FilterType.undone),
-              _buildFilterButton('完了', FilterType.done),
-            ],
-          ),
-        ),
       ),
-      body: _buildTodoList(user),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => AddPostPage()),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('posts')
+            .where('email', isEqualTo: user.email)
+            .orderBy('date')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('データがありません'));
+          }
+
+          final docs = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final done = data['done'] as bool? ?? false;
+            switch (_filter) {
+              case Filter.completed:
+                return done;
+              case Filter.incomplete:
+                return !done;
+              case Filter.all:
+              default:
+                return true;
+            }
+          }).toList();
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: docs.length,
+            itemBuilder: (context, i) => PostItem(
+              document: docs[i],
+              currentUser: user,
+            ),
           );
         },
       ),
-    );
-  }
-
-  Widget _buildFilterButton(String label, FilterType type) {
-    final isSelected = _filterType == type;
-    return TextButton(
-      onPressed: () {
-        setState(() {
-          _filterType = type;
-        });
-      },
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.blue : Colors.black54,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddPostPage()),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('追加'),
       ),
-    );
-  }
-
-  Widget _buildTodoList(User user) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('posts')
-          .where('email', isEqualTo: user.email)
-          .orderBy('date', descending: false)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('エラー: ${snapshot.error}'));
-        }
-        if (!snapshot.hasData) return Center(child: Text('読込中...'));
-
-        final docs = snapshot.data!.docs;
-
-        // フィルター適用
-        final filteredDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final isDone = data['isDone'] ?? false;
-          switch (_filterType) {
-            case FilterType.done:
-              return isDone;
-            case FilterType.undone:
-              return !isDone;
-            case FilterType.all:
-            default:
-              return true;
-          }
-        }).toList();
-
-        return ListView(
-          children: filteredDocs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            final isDone = data['isDone'] ?? false;
-
-            // dateフィールドをDateTime型に変換
-            DateTime? dateTime;
-            final dateValue = data['date'];
-            if (dateValue is Timestamp) {
-              dateTime = dateValue.toDate();
-            } else if (dateValue is String) {
-              dateTime = DateTime.tryParse(dateValue);
-            }
-
-            return Card(
-              child: ListTile(
-                leading: Checkbox(
-                  value: isDone,
-                  onChanged: (value) {
-                    FirebaseFirestore.instance
-                        .collection('posts')
-                        .doc(doc.id)
-                        .update({'isDone': value});
-                  },
-                ),
-                title: Text(
-                  data['text'],
-                  style: TextStyle(
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                    color: isDone ? Colors.grey : null,
-                  ),
-                ),
-                subtitle: Text(
-                  data['email'] +
-                      (dateTime != null
-                          ? ' (${dateTime.toLocal().toString().split(".")[0]})'
-                          : ''),
-                ),
-                trailing: data['email'] == user.email
-                    ? IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () async {
-                          await FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(doc.id)
-                              .delete();
-                        },
-                      )
-                    : null,
-              ),
-            );
-          }).toList(),
-        );
-      },
     );
   }
 }

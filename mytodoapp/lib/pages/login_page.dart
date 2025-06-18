@@ -5,77 +5,80 @@ import '../models/user_state.dart';
 import 'todo_page.dart';
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  String infoText = '';
-  String email = '';
-  String password = '';
+  String email = '', password = '', infoText = '';
+  final _formKey = GlobalKey<FormState>();
+
+  Future<void> _signInOrUp(bool isSignUp) async {
+    try {
+      final auth = FirebaseAuth.instance;
+      final result = isSignUp
+          ? await auth.createUserWithEmailAndPassword(
+              email: email, password: password)
+          : await auth.signInWithEmailAndPassword(
+              email: email, password: password);
+
+      if (result.user != null) {
+        Provider.of<UserState>(context, listen: false).setUser(result.user!);
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const TodoPage()));
+      }
+    } catch (e) {
+      setState(() {
+        infoText = "エラー：${e.toString()}";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final userState = Provider.of<UserState>(context);
-
     return Scaffold(
+      appBar: AppBar(title: const Text('ログイン / 登録')),
       body: Center(
-        child: Container(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              TextFormField(
-                decoration: InputDecoration(labelText: 'メールアドレス'),
-                onChanged: (value) => setState(() => email = value),
-              ),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'パスワード'),
-                obscureText: true,
-                onChanged: (value) => setState(() => password = value),
-              ),
-              Container(
-                padding: EdgeInsets.all(8),
-                child: Text(infoText),
-              ),
-              ElevatedButton(
-                child: Text('ユーザー登録'),
-                onPressed: () async {
-                  try {
-                    final auth = FirebaseAuth.instance;
-                    final result = await auth.createUserWithEmailAndPassword(
-                        email: email, password: password);
-                    userState.setUser(result.user!);
-                    await Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => TodoPage()),
-                    );
-                  } catch (e) {
-                    setState(() {
-                      infoText = "登録に失敗しました：${e.toString()}";
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                child: Text('ログイン'),
-                onPressed: () async {
-                  try {
-                    final auth = FirebaseAuth.instance;
-                    final result = await auth.signInWithEmailAndPassword(
-                        email: email, password: password);
-                    userState.setUser(result.user!);
-                    await Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => TodoPage()),
-                    );
-                  } catch (e) {
-                    setState(() {
-                      infoText = "ログインに失敗しました：${e.toString()}";
-                    });
-                  }
-                },
-              ),
-            ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'メールアドレス'),
+                  onChanged: (value) => email = value,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'パスワード'),
+                  obscureText: true,
+                  onChanged: (value) => password = value,
+                ),
+                const SizedBox(height: 16),
+                Text(infoText, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _signInOrUp(true),
+                        child: const Text('ユーザー登録'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _signInOrUp(false),
+                        child: const Text('ログイン'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
