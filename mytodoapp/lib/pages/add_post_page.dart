@@ -12,6 +12,9 @@ class AddPostPage extends StatefulWidget {
 
 class _AddPostPageState extends State<AddPostPage> {
   String message = '';
+  String selectedCategory = 'プライベート'; // 初期値を設定
+
+  final List<String> categories = ['仕事', 'プライベート', '趣味', 'その他']; // カテゴリ一覧
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +32,21 @@ class _AddPostPageState extends State<AddPostPage> {
               onChanged: (value) => message = value,
             ),
             const SizedBox(height: 16),
+            // カテゴリ選択ドロップダウン
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: 'カテゴリ'),
+              value: selectedCategory,
+              items: categories.map((category) {
+                return DropdownMenuItem(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => selectedCategory = value);
+              },
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -40,6 +58,7 @@ class _AddPostPageState extends State<AddPostPage> {
                     'email': user.email,
                     'date': now,
                     'done': false,
+                    'category': selectedCategory, // カテゴリをFirestoreに追加
                   });
                   Navigator.pop(context);
                 },
@@ -51,3 +70,4 @@ class _AddPostPageState extends State<AddPostPage> {
     );
   }
 }
+

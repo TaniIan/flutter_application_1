@@ -18,6 +18,8 @@ class TodoPage extends StatefulWidget {
 
 class _TodoPageState extends State<TodoPage> {
   Filter _filter = Filter.all;
+  String _selectedCategory = 'すべて';
+  List<String> _allCategories = ['すべて']; // 初期状態
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,25 @@ class _TodoPageState extends State<TodoPage> {
       appBar: AppBar(
         title: const Text('やること一覧'),
         actions: [
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedCategory,
+              items: _allCategories.map((category) {
+                return DropdownMenuItem<String>(
+                  value: category,
+                  child: Text(category, style: const TextStyle(fontSize: 14)),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedCategory = value);
+                }
+              },
+              icon: const Icon(Icons.category, color: Colors.white),
+              dropdownColor: Colors.white,
+              style: const TextStyle(color: Colors.black),
+            ),
+          ),
           PopupMenuButton<Filter>(
             onSelected: (Filter selected) {
               setState(() => _filter = selected);
@@ -69,30 +90,110 @@ class _TodoPageState extends State<TodoPage> {
             return const Center(child: Text('データがありません'));
           }
 
-          final docs = snapshot.data!.docs.where((doc) {
+          // フィルター処理
+          final allDocs = snapshot.data!.docs;
+
+          _allCategories = ['すべて'];
+          for (var doc in allDocs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final category = data['category'] as String? ?? '未分類';
+            if (!_allCategories.contains(category)) {
+              _allCategories.add(category);
+            }
+          }
+          final filteredDocs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final done = data['done'] as bool? ?? false;
-            switch (_filter) {
-              case Filter.completed:
-                return done;
-              case Filter.incomplete:
-                return !done;
-              case Filter.all:
-              default:
-                return true;
-            }
+            final category = data['category'] as String? ?? '未分類';
+
+            final matchesFilter = switch (_filter) {
+              Filter.completed => done,
+              Filter.incomplete => !done,
+              Filter.all => true,
+            };
+
+            final matchesCategory =
+                _selectedCategory == 'すべて' || _selectedCategory == category;
+            return matchesFilter && matchesCategory;
           }).toList();
 
-          return ListView.builder(
+          // final filteredDocs = snapshot.data!.docs.where((doc) {
+          //   final data = doc.data() as Map<String, dynamic>;
+          //   final done = data['done'] as bool? ?? false;
+          //   switch (_filter) {
+          //     case Filter.completed:
+          //       return done;
+          //     case Filter.incomplete:
+          //       return !done;
+          //     case Filter.all:
+          //     default:
+          //       return true;
+          //   }
+          // });
+
+          // カテゴリ別にグループ化
+          final Map<String, List<DocumentSnapshot>> categorized = {};
+          for (var doc in filteredDocs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final category = data['category'] as String? ?? '未分類';
+            categorized.putIfAbsent(category, () => []).add(doc);
+          }
+
+          return ListView(
             padding: const EdgeInsets.all(12),
-            itemCount: docs.length,
-            itemBuilder: (context, i) => PostItem(
-              document: docs[i],
-              currentUser: user,
-            ),
+            children: categorized.entries.map((entry) {
+              final category = entry.key;
+              final items = entry.value;
+              return ExpansionTile(
+                title: Text(category),
+                children: items.map((doc) {
+                  return PostItem(document: doc, currentUser: user);
+                }).toList(),
+              );
+            }).toList(),
           );
         },
       ),
+
+      // body: StreamBuilder<QuerySnapshot>(
+      //   stream: FirebaseFirestore.instance
+      //       .collection('posts')
+      //       .where('email', isEqualTo: user.email)
+      //       .orderBy('date')
+      //       .snapshots(),
+      //   builder: (context, snapshot) {
+      //     if (snapshot.connectionState == ConnectionState.waiting) {
+      //       return const Center(child: CircularProgressIndicator());
+      //     }
+
+      //     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+      //       return const Center(child: Text('データがありません'));
+      //     }
+
+      //     final docs = snapshot.data!.docs.where((doc) {
+      //       final data = doc.data() as Map<String, dynamic>;
+      //       final done = data['done'] as bool? ?? false;
+      //       switch (_filter) {
+      //         case Filter.completed:
+      //           return done;
+      //         case Filter.incomplete:
+      //           return !done;
+      //         case Filter.all:
+      //         default:
+      //           return true;
+      //       }
+      //     }).toList();
+
+      //     return ListView.builder(
+      //       padding: const EdgeInsets.all(12),
+      //       itemCount: docs.length,
+      //       itemBuilder: (context, i) => PostItem(
+      //         document: docs[i],
+      //         currentUser: user,
+      //       ),
+      //     );
+      //   },
+      // ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
