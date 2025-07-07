@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/user_state.dart';
 import '../widgets/post_item.dart';
 import 'add_post_page.dart';
@@ -19,11 +20,23 @@ class TodoPage extends StatefulWidget {
 class _TodoPageState extends State<TodoPage> {
   Filter _filter = Filter.all;
   String _selectedCategory = 'すべて';
-  List<String> _allCategories = ['すべて']; // 初期状態
+  List<String> _allCategories = ['すべて'];
+
+  final Map<String, bool> _expanded = {};
+  late User _currentUser;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _currentUser = Provider.of<UserState>(context).user!;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserState>(context).user!;
+    final postsQuery = FirebaseFirestore.instance
+        .collection('posts')
+        .where('email', isEqualTo: _currentUser.email)
+        .orderBy('date');
 
     return Scaffold(
       appBar: AppBar(
@@ -52,11 +65,10 @@ class _TodoPageState extends State<TodoPage> {
             onSelected: (Filter selected) {
               setState(() => _filter = selected);
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: Filter.all, child: Text('すべて')),
-              const PopupMenuItem(value: Filter.completed, child: Text('完了のみ')),
-              const PopupMenuItem(
-                  value: Filter.incomplete, child: Text('未完了のみ')),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: Filter.all, child: Text('すべて')),
+              PopupMenuItem(value: Filter.completed, child: Text('完了のみ')),
+              PopupMenuItem(value: Filter.incomplete, child: Text('未完了のみ')),
             ],
             icon: const Icon(Icons.filter_list),
           ),
@@ -76,31 +88,28 @@ class _TodoPageState extends State<TodoPage> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('posts')
-            .where('email', isEqualTo: user.email)
-            .orderBy('date')
-            .snapshots(),
+        stream: postsQuery.snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final allDocs = snapshot.data!.docs;
+
+          if (allDocs.isEmpty) {
             return const Center(child: Text('データがありません'));
           }
 
-          // フィルター処理
-          final allDocs = snapshot.data!.docs;
-
-          _allCategories = ['すべて'];
+          // ✅ 1. カテゴリは全件から生成
+          final Set<String> categorySet = {'すべて'};
           for (var doc in allDocs) {
             final data = doc.data() as Map<String, dynamic>;
             final category = data['category'] as String? ?? '未分類';
-            if (!_allCategories.contains(category)) {
-              _allCategories.add(category);
-            }
+            categorySet.add(category);
           }
+          _allCategories = categorySet.toList();
+
+          // ✅ 2. ローカルで完了・未完了フィルタも行う
           final filteredDocs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final done = data['done'] as bool? ?? false;
@@ -114,10 +123,15 @@ class _TodoPageState extends State<TodoPage> {
 
             final matchesCategory =
                 _selectedCategory == 'すべて' || _selectedCategory == category;
+
             return matchesFilter && matchesCategory;
           }).toList();
 
-          // カテゴリ別にグループ化
+          if (filteredDocs.isEmpty) {
+            return const Center(child: Text('条件に一致するデータがありません'));
+          }
+
+          // ✅ 3. カテゴリごとにグループ化
           final Map<String, List<DocumentSnapshot>> categorized = {};
           for (var doc in filteredDocs) {
             final data = doc.data() as Map<String, dynamic>;
@@ -125,22 +139,30 @@ class _TodoPageState extends State<TodoPage> {
             categorized.putIfAbsent(category, () => []).add(doc);
           }
 
-          return ListView(
+          final categories = categorized.entries.toList();
+
+          return ListView.builder(
             padding: const EdgeInsets.all(12),
-            children: categorized.entries.map((entry) {
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final entry = categories[index];
               final category = entry.key;
               final items = entry.value;
+
               return ExpansionTile(
                 title: Text(category),
+                initiallyExpanded: _expanded[category] ?? false,
+                onExpansionChanged: (val) {
+                  setState(() => _expanded[category] = val);
+                },
                 children: items.map((doc) {
-                  return PostItem(document: doc, currentUser: user);
+                  return PostItem(document: doc, currentUser: _currentUser);
                 }).toList(),
               );
-            }).toList(),
+            },
           );
         },
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
