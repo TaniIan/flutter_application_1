@@ -25,7 +25,7 @@ class PostItem extends StatelessWidget {
         ),
         subtitle: Text(data['email']),
         leading: Checkbox(
-          value: data['done'] ?? false, // ←ここを修正！
+          value: data['done'] ?? false,
           onChanged: (val) {
             FirebaseFirestore.instance
                 .collection('posts')

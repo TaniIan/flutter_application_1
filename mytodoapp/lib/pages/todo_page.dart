@@ -117,20 +117,6 @@ class _TodoPageState extends State<TodoPage> {
             return matchesFilter && matchesCategory;
           }).toList();
 
-          // final filteredDocs = snapshot.data!.docs.where((doc) {
-          //   final data = doc.data() as Map<String, dynamic>;
-          //   final done = data['done'] as bool? ?? false;
-          //   switch (_filter) {
-          //     case Filter.completed:
-          //       return done;
-          //     case Filter.incomplete:
-          //       return !done;
-          //     case Filter.all:
-          //     default:
-          //       return true;
-          //   }
-          // });
-
           // カテゴリ別にグループ化
           final Map<String, List<DocumentSnapshot>> categorized = {};
           for (var doc in filteredDocs) {
@@ -155,45 +141,6 @@ class _TodoPageState extends State<TodoPage> {
         },
       ),
 
-      // body: StreamBuilder<QuerySnapshot>(
-      //   stream: FirebaseFirestore.instance
-      //       .collection('posts')
-      //       .where('email', isEqualTo: user.email)
-      //       .orderBy('date')
-      //       .snapshots(),
-      //   builder: (context, snapshot) {
-      //     if (snapshot.connectionState == ConnectionState.waiting) {
-      //       return const Center(child: CircularProgressIndicator());
-      //     }
-
-      //     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-      //       return const Center(child: Text('データがありません'));
-      //     }
-
-      //     final docs = snapshot.data!.docs.where((doc) {
-      //       final data = doc.data() as Map<String, dynamic>;
-      //       final done = data['done'] as bool? ?? false;
-      //       switch (_filter) {
-      //         case Filter.completed:
-      //           return done;
-      //         case Filter.incomplete:
-      //           return !done;
-      //         case Filter.all:
-      //         default:
-      //           return true;
-      //       }
-      //     }).toList();
-
-      //     return ListView.builder(
-      //       padding: const EdgeInsets.all(12),
-      //       itemCount: docs.length,
-      //       itemBuilder: (context, i) => PostItem(
-      //         document: docs[i],
-      //         currentUser: user,
-      //       ),
-      //     );
-      //   },
-      // ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
