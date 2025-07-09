@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,6 +30,52 @@ class _TodoPageState extends State<TodoPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _currentUser = Provider.of<UserState>(context).user!;
+  }
+
+  void _openLogOutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return CupertinoAlertDialog(
+          title: const Text('ログアウト'),
+          content: const Text('本当にログアウトしますか？'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text(
+                'キャンセル',
+                style: TextStyle(color: Colors.blueAccent),
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+            CupertinoDialogAction(
+              child: const Text(
+                'ログアウト',
+                style: TextStyle(color: Colors.red),
+              ),
+              onPressed: () {
+                Navigator.pop(context); // ダイアログを閉じる
+                _logout();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Provider.of<UserState>(context, listen: false).clearUser();
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      }
+    } catch (e) {
+      debugPrint('ログアウトエラー: $e');
+    }
   }
 
   @override
@@ -74,16 +121,7 @@ class _TodoPageState extends State<TodoPage> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              Provider.of<UserState>(context, listen: false).clearUser();
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                );
-              }
-            },
+            onPressed: _openLogOutDialog,
           ),
         ],
       ),
