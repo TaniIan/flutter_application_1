@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../pages/edit_post_page.dart';
+
 class PostItem extends StatelessWidget {
   final DocumentSnapshot document;
   final User currentUser;
 
-  const PostItem(
-      {super.key, required this.document, required this.currentUser});
+  const PostItem({
+    super.key,
+    required this.document,
+    required this.currentUser,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +39,30 @@ class PostItem extends StatelessWidget {
           },
         ),
         trailing: isOwner
-            ? IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () async {
-                  await FirebaseFirestore.instance
-                      .collection('posts')
-                      .doc(document.id)
-                      .delete();
-                },
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditPostPage(document: document),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('posts')
+                          .doc(document.id)
+                          .delete();
+                    },
+                  ),
+                ],
               )
             : null,
       ),
