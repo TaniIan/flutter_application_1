@@ -13,11 +13,22 @@ class EditPostPage extends StatefulWidget {
 class _EditPostPageState extends State<EditPostPage> {
   late TextEditingController _textController;
 
+  String? _selectedCategory;
+
+  // 🔥 固定カテゴリリスト
+  final List<String> _allCategories = [
+    '仕事',
+    '趣味',
+    'プライベート',
+    'その他',
+  ];
+
   @override
   void initState() {
     super.initState();
     final data = widget.document.data()! as Map<String, dynamic>;
     _textController = TextEditingController(text: data['text'] ?? '');
+    _selectedCategory = data['category'] ?? _allCategories.first;
   }
 
   @override
@@ -38,7 +49,23 @@ class _EditPostPageState extends State<EditPostPage> {
               controller: _textController,
               decoration: const InputDecoration(labelText: '内容'),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              items: _allCategories.map((category) {
+                return DropdownMenuItem(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
+              decoration: const InputDecoration(labelText: 'カテゴリー'),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                });
+              },
+            ),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
                 await FirebaseFirestore.instance
@@ -46,6 +73,7 @@ class _EditPostPageState extends State<EditPostPage> {
                     .doc(widget.document.id)
                     .update({
                   'text': _textController.text,
+                  'category': _selectedCategory,
                 });
                 if (mounted) Navigator.pop(context);
               },
