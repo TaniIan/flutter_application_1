@@ -87,15 +87,24 @@ class _TodoPageState extends State<TodoPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('やること一覧'),
+        title: const Text(
+          'やること一覧',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        centerTitle: true, // ログインページに合わせてタイトルを中央寄せ
+        backgroundColor: Theme.of(context).primaryColor, // テーマカラーを使用
         actions: [
+          // カテゴリ選択ドロップダウン
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedCategory,
               items: _allCategories.map((category) {
                 return DropdownMenuItem<String>(
                   value: category,
-                  child: Text(category, style: const TextStyle(fontSize: 14)),
+                  child: Text(
+                    category,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -104,10 +113,15 @@ class _TodoPageState extends State<TodoPage> {
                 }
               },
               icon: const Icon(Icons.category, color: Colors.white),
-              dropdownColor: Colors.white,
-              style: const TextStyle(color: Colors.black),
+              dropdownColor: Theme.of(context).cardColor, // カードの背景色に合わせる
+              style: TextStyle(
+                  color: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.color), // テキストカラーも調整
             ),
           ),
+          // フィルターオプション
           PopupMenuButton<Filter>(
             onSelected: (Filter selected) {
               setState(() => _filter = selected);
@@ -117,10 +131,11 @@ class _TodoPageState extends State<TodoPage> {
               PopupMenuItem(value: Filter.completed, child: Text('完了のみ')),
               PopupMenuItem(value: Filter.incomplete, child: Text('未完了のみ')),
             ],
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list, color: Colors.white),
           ),
+          // ログアウトボタン
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: _openLogOutDialog,
           ),
         ],
@@ -135,7 +150,27 @@ class _TodoPageState extends State<TodoPage> {
           final allDocs = snapshot.data!.docs;
 
           if (allDocs.isEmpty) {
-            return const Center(child: Text('データがありません'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.assignment_turned_in, // やることがない場合のアイコン
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'まだToDoがありません。\n右下のボタンから追加しましょう！',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
 
           // ✅ 1. カテゴリは全件から生成
@@ -145,7 +180,8 @@ class _TodoPageState extends State<TodoPage> {
             final category = data['category'] as String? ?? '未分類';
             categorySet.add(category);
           }
-          _allCategories = categorySet.toList();
+          // カテゴリリストの順序を安定させるためソート
+          _allCategories = categorySet.toList()..sort();
 
           // ✅ 2. ローカルで完了・未完了フィルタも行う
           final filteredDocs = allDocs.where((doc) {
@@ -166,7 +202,27 @@ class _TodoPageState extends State<TodoPage> {
           }).toList();
 
           if (filteredDocs.isEmpty) {
-            return const Center(child: Text('条件に一致するデータがありません'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.inbox_outlined, // フィルター後の結果がない場合のアイコン
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '選択された条件に一致するToDoはありません。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
 
           // ✅ 3. カテゴリごとにグループ化
@@ -177,7 +233,9 @@ class _TodoPageState extends State<TodoPage> {
             categorized.putIfAbsent(category, () => []).add(doc);
           }
 
-          final categories = categorized.entries.toList();
+          // カテゴリ名をアルファベット順（または日本語の順序）にソートして表示
+          final categories = categorized.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key));
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -187,15 +245,29 @@ class _TodoPageState extends State<TodoPage> {
               final category = entry.key;
               final items = entry.value;
 
-              return ExpansionTile(
-                title: Text(category),
-                initiallyExpanded: _expanded[category] ?? false,
-                onExpansionChanged: (val) {
-                  setState(() => _expanded[category] = val);
-                },
-                children: items.map((doc) {
-                  return PostItem(document: doc, currentUser: _currentUser);
-                }).toList(),
+              return Card(
+                // カードデザインを適用
+                elevation: 4, // 影の深さ
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12), // 角を丸くする
+                ),
+                child: ExpansionTile(
+                  title: Text(
+                    category,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor, // カテゴリ名を強調
+                    ),
+                  ),
+                  initiallyExpanded: _expanded[category] ?? false,
+                  onExpansionChanged: (val) {
+                    setState(() => _expanded[category] = val);
+                  },
+                  children: items.map((doc) {
+                    return PostItem(document: doc, currentUser: _currentUser);
+                  }).toList(),
+                ),
               );
             },
           );
@@ -210,6 +282,12 @@ class _TodoPageState extends State<TodoPage> {
         },
         icon: const Icon(Icons.add),
         label: const Text('追加'),
+        backgroundColor: Theme.of(context).primaryColor, // テーマカラーを使用
+        foregroundColor: Colors.white, // 文字色を白に
+        shape: RoundedRectangleBorder(
+          // 角を丸くする
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }
